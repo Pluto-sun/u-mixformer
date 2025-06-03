@@ -1,37 +1,31 @@
 import torch
 import torch.nn as nn
-from mmengine.model import BaseModule
-from mmseg.registry import MODELS
 from ..backbones.mit import MixVisionTransformer
-from ..utils import nchw_to_nlc, nlc_to_nchw
 
-@MODELS.register_module()
-class UMixFormerClassifier(BaseModule):
+class UMixFormerClassifier(nn.Module):
     """UMixFormer for Image Classification.
     
     This classifier is based on the UMixFormer architecture, which uses
     a hierarchical vision transformer as backbone and adds a classification head.
     
     Args:
-        backbone (dict): Backbone config dict.
+        backbone_config (dict): Backbone configuration dictionary.
         num_classes (int): Number of classes for classification.
         in_channels (int): Number of input channels. Defaults to 3.
         drop_rate (float): Dropout rate. Defaults to 0.0.
         drop_path_rate (float): Drop path rate. Defaults to 0.1.
-        init_cfg (dict, optional): Initialization config dict. Defaults to None.
     """
     
     def __init__(self,
-                 backbone,
+                 backbone_config,
                  num_classes,
                  in_channels=3,
                  drop_rate=0.0,
-                 drop_path_rate=0.1,
-                 init_cfg=None):
-        super().__init__(init_cfg=init_cfg)
+                 drop_path_rate=0.1):
+        super().__init__()
         
         # Build backbone
-        self.backbone = MODELS.build(backbone)
+        self.backbone = MixVisionTransformer(**backbone_config)
         
         # Get the output dimension of the backbone
         self.embed_dims = self.backbone.embed_dims[-1]
@@ -47,6 +41,20 @@ class UMixFormerClassifier(BaseModule):
         
         # Dropout
         self.dropout = nn.Dropout(p=drop_rate)
+        
+        # Initialize weights
+        self._init_weights()
+        
+    def _init_weights(self):
+        """Initialize the weights of the model."""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.trunc_normal_(m.weight, std=0.02)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(m.weight, 1.0)
         
     def forward(self, x):
         """Forward function.
