@@ -135,3 +135,4 @@ docker/serve/entrypoint.sh
 /segformer_inmiddle
 segformer_mit_author_training.json
 timm
+*.csv
